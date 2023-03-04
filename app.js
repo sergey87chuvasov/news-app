@@ -58,13 +58,13 @@ const http = customHttp();
 
 const newsService = (function () {
   const apiKey = '9e80f672976c457da7b1606591c0a803';
-  const apiUrl = 'https://newsapi.org/v2';
+  const apiUrl = 'https://news-api-v2.herokuapp.com';
 
   // return request to server
   return {
-    topHeadlines(country = 'ua', cb) {
+    topHeadlines(country = 'us', cb) {
       http.get(
-        `${apiUrl}/top-headlines?country=${country}&category=technology&apiKey=${apiKey}`,
+        `${apiUrl}/top-headlines?country=${country}&apiKey=${apiKey}`,
         cb
       );
     },
@@ -73,6 +73,16 @@ const newsService = (function () {
     },
   };
 })();
+
+// elements
+const form = document.forms['newsControls'];
+const countrySelect = form.elements['country'];
+const searchInput = form.elements['search'];
+
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  loadNews();
+});
 
 //  init selects
 document.addEventListener('DOMContentLoaded', function () {
@@ -83,18 +93,42 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // basic load news
 function loadNews() {
-  newsService.topHeadlines('ua', onGetResponse);
+  showLoader();
+  const country = countrySelect.value;
+  const searchText = searchInput.value;
+
+  if (!searchText) {
+    newsService.topHeadlines(country, onGetResponse);
+  } else {
+    newsService.everything(searchText, onGetResponse);
+  }
 }
 
 // fun get respons from server
 function onGetResponse(err, res) {
-  console.log(res);
+  removePreloader();
+  if (err) {
+    showAlert(err, 'error-msg');
+    return;
+  }
+
+  if (!res.articles.length) {
+    console.log('error');
+    return;
+  }
+
+  // console.log(res);
   renderNews(res.articles);
 }
 
 // func rend news
 function renderNews(news) {
   const newsContainer = document.querySelector('.news-container .row');
+
+  if (newsContainer.children.length) {
+    clearContainer(newsContainer);
+  }
+
   let fragment = '';
   news.forEach((newsItem) => {
     const el = newsTemplate(newsItem);
@@ -102,6 +136,14 @@ function renderNews(news) {
   });
   // console.log(fragment);
   newsContainer.insertAdjacentHTML('afterbegin', fragment);
+}
+
+function clearContainer(container) {
+  let child = container.lastElementChild;
+  while (child) {
+    container.removeChild(child);
+    child = container.lastElementChild;
+  }
 }
 
 // news item template func
@@ -123,4 +165,29 @@ function newsTemplate({ urlToImage, title, url, description }) {
       </div>
     </div>
   `;
+}
+
+// pre
+function showAlert(msg, type = 'success') {
+  M.toast({ html: msg, classes: type });
+}
+
+// show loader
+function showLoader() {
+  document.body.insertAdjacentHTML(
+    'afterbegin',
+    `
+  <div class="progress">
+    <div class="indeterminate"></div>
+  </div>
+  `
+  );
+}
+
+// remove loader func
+function removePreloader() {
+  const loader = document.querySelector('.progress');
+  if (loader) {
+    loader.remove();
+  }
 }
